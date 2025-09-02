@@ -1,0 +1,33 @@
+{
+  "name": "Go with Gin & MongoDB",
+
+  // Pointe vers votre fichier Docker Compose.
+  "dockerComposeFile": "docker-compose.yml",
+
+  // Spécifie quel service dans le fichier Compose est votre conteneur de dev principal.
+  "service": "app",
+
+  // Définit le dossier de travail une fois dans le conteneur.
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  // Commandes à exécuter après la création du conteneur.
+
+  // Personnalisation pour les IDE JetBrains comme GoLand.
+  "customizations": {
+    "jetbrains": {
+      "backend": "GoLand"
+    },
+    // Recommandé: ajoute l'extension Go officielle pour VS Code.
+    "vscode": {
+      "extensions": [
+        "golang.go"
+      ]
+    }
+  },
+
+  // S'assure que le port 8080 est bien transféré et reconnu par l'IDE.
+  "forwardPorts": [8080],
+
+  // Décommentez pour vous connecter en tant que root si nécessaire.
+  // "remoteUser": "root"
+}

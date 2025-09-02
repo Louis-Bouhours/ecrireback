@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
+	"github.com/Sarinja-Corp/Ecrire/auth"
 	"github.com/Sarinja-Corp/ecrireback/api"
-	"github.com/Sarinja-Corp/ecrireback/auth"
 	"github.com/Sarinja-Corp/ecrireback/chat"
 	"github.com/Sarinja-Corp/ecrireback/models"
 	"github.com/gin-contrib/cors"
@@ -68,8 +68,8 @@ func main() {
 	api.LogoutUserRoutes(r)
 
 	// 4. Démarrer le serveur
-	log.Println("Serveur sur http://localhost:8080")
-	if err := r.Run(":8080"); err != nil {
+	log.Println("Serveur sur http://localhost:8081")
+	if err := r.Run(":8081"); err != nil {
 		log.Fatalf("Erreur serveur: %v", err)
 	}
 }
