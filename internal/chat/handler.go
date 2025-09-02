@@ -2,7 +2,7 @@ package chat
 
 import (
 	"errors"
-	"github.com/Sarinja-Corp/Ecrire/auth"
+	"github.com/Sarinja-Corp/ecrireback/internal/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	socketio "github.com/googollee/go-socket.io"

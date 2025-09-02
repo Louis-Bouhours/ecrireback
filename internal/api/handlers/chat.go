@@ -1,8 +1,8 @@
-package api
+package handlers
 
 import (
 	"fmt"
-	"github.com/Sarinja-Corp/Ecrire/auth"
+	"github.com/Sarinja-Corp/ecrireback/internal/auth"
 	"github.com/gin-gonic/gin"
 	socketio "github.com/googollee/go-socket.io"
 	"net/http"

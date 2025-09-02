@@ -1,4 +1,4 @@
-package api
+package handlers
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Sarinja-Corp/ecrireback/models" // Assurez-vous que le chemin d'import est correct
+	"github.com/Sarinja-Corp/ecrireback/internal/models" // Assurez-vous que le chemin d'import est correct
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv" // <-- Importer la nouvelle bibliothèque
@@ -22,7 +22,7 @@ var jwtSecret []byte
 // C'est l'endroit parfait pour charger les variables d'environnement.
 func init() {
 	// Charger le fichier .env
-	err := godotenv.Load()
+	err := godotenv.Load("../../configs/.env")
 	if err != nil {
 		log.Fatal("Erreur lors du chargement du fichier .env")
 	}

@@ -1,8 +1,8 @@
-package api
+package handlers
 
 import (
 	"context"
-	"github.com/Sarinja-Corp/ecrireback/models"
+	"github.com/Sarinja-Corp/ecrireback/internal/models"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"golang.org/x/crypto/bcrypt"

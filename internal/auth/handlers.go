@@ -2,7 +2,7 @@ package auth
 
 import (
 	"context"
-	"github.com/Sarinja-Corp/Ecrire/models"
+	"github.com/Sarinja-Corp/ecrireback/internal/models"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"net/http"

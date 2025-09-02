@@ -4,10 +4,10 @@ import (
 	"context"
 	"log"
 
-	"github.com/Sarinja-Corp/ecrireback/api"
-	"github.com/Sarinja-Corp/ecrireback/auth"
-	"github.com/Sarinja-Corp/ecrireback/chat"
-	"github.com/Sarinja-Corp/ecrireback/models"
+	"github.com/Sarinja-Corp/ecrireback/internal/api/handlers"
+	"github.com/Sarinja-Corp/ecrireback/internal/auth"
+	"github.com/Sarinja-Corp/ecrireback/internal/chat"
+	"github.com/Sarinja-Corp/ecrireback/internal/models"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -63,9 +63,9 @@ func main() {
 	})
 
 	// Inclusion des routes API qui dépendent de la BDD
-	api.RegisterUserRoutes(r)
-	api.LoginUserRoutes(r)
-	api.LogoutUserRoutes(r)
+	handlers.RegisterUserRoutes(r)
+	handlers.LoginUserRoutes(r)
+	handlers.LogoutUserRoutes(r)
 
 	// 4. Démarrer le serveur
 	log.Println("Serveur sur http://localhost:8080")
