@@ -1,7 +1,6 @@
 module github.com/Sarinja-Corp/ecrireback
 
 require (
-	github.com/Sarinja-Corp/Ecrire v0.0.0-20250516135218-16364c7dcb16
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.10.1
 	github.com/golang-jwt/jwt/v5 v5.2.2

@@ -5,7 +5,7 @@ services:
   redis:
     image: redis:latest
     ports:
-      - "6379:6379"
+      - "6400:6400"
     networks:
       - gonet
   # Service pour l'application Go (votre conteneur de développement)
