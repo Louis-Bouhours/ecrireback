@@ -16,7 +16,7 @@ func SetupRouter() *gin.Engine {
 
 	// Routes protégées
 	authorized := router.Group("/")
-	authorized.Use(auth.AuthRequired())
+	authorized.Use(auth.AuthRequired)
 	{
 		authorized.POST("/logout", auth.LogoutHandler)
 		authorized.GET("/profile", func(c *gin.Context) {

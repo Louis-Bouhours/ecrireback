@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// NOTE: Pense à charger cette clé depuis une variable d'environnement (.env)
+// comme nous en avons discuté pour la sécurité.
 var JwtKey = []byte("JWT_SECRET")
 
 type Claims struct {
@@ -24,8 +27,7 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-// ... (GenerateJWT et ValidateJWT restent ici, sans changement)
-
+// GenerateJWT crée un nouveau token JWT signé pour un utilisateur donné.
 func GenerateJWT(userID, username string) (string, error) {
 	// Définition de la date d'expiration du token (par exemple, 24 heures)
 	expirationTime := time.Now().Add(24 * time.Hour)
@@ -50,6 +52,28 @@ func GenerateJWT(userID, username string) (string, error) {
 	}
 
 	return tokenString, nil
+}
+
+// ValidateJWT vérifie la validité d'un token et retourne les claims s'il est valide.
+// Cette fonction est nécessaire pour le middleware AuthRequired.
+func ValidateJWT(tokenStr string) (*Claims, error) {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("algorithme de signature inattendu : %v", token.Header["alg"])
+		}
+		return JwtKey, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !token.Valid {
+		return nil, fmt.Errorf("token invalide")
+	}
+
+	return claims, nil
 }
 
 func LoginHandler(c *gin.Context) {
@@ -79,6 +103,46 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("token", token, 3600*24, "/", "", false, true)
+	// Le dernier argument "true" pour HttpOnly rend le cookie inaccessible en JavaScript
+	c.SetCookie("token", token, 3600*24, "/", "localhost", false, true)
 	c.JSON(http.StatusOK, gin.H{"message": "Connecté"})
+}
+
+// ==================================================================
+// FONCTIONS AJOUTÉES POUR RÉSOUDRE LES ERREURS
+// ==================================================================
+
+// AuthRequired est un middleware qui protège les routes.
+func AuthRequired(c *gin.Context) {
+	// On récupère le token depuis le cookie
+	tokenString, err := c.Cookie("token")
+	if err != nil {
+		// Si pas de cookie, l'utilisateur n'est pas autorisé
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Accès non autorisé"})
+		c.Abort() // On arrête le traitement de la requête
+		return
+	}
+
+	// On valide le token
+	claims, err := ValidateJWT(tokenString)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token invalide"})
+		c.Abort()
+		return
+	}
+
+	// Le token est valide, on peut stocker l'ID utilisateur dans le contexte
+	// pour que les handlers suivants puissent l'utiliser
+	c.Set("userID", claims.UserID)
+
+	// On passe au handler suivant
+	c.Next()
+}
+
+// LogoutHandler gère la déconnexion de l'utilisateur.
+func LogoutHandler(c *gin.Context) {
+	// Pour se déconnecter, on supprime le cookie en lui donnant une date d'expiration passée.
+	// MaxAge: -1 demande au navigateur de le supprimer immédiatement.
+	c.SetCookie("token", "", -1, "/", "localhost", false, true)
+	c.JSON(http.StatusOK, gin.H{"message": "Déconnecté"})
 }
