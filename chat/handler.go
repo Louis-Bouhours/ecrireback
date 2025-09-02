@@ -2,12 +2,13 @@ package chat
 
 import (
 	"errors"
+	"log"
+	"net/http"
+
 	"github.com/Louis-Bouhours/ecrireback/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	socketio "github.com/googollee/go-socket.io"
-	"log"
-	"net/http"
 )
 
 func getUsernameFromSocket(s socketio.Conn) (string, error) {
