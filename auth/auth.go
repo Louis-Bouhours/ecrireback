@@ -1,13 +1,13 @@
 package auth
 
 import (
-	"github.com/Sarinja-Corp/ecrireback/db" // Importe notre package database
+	"net/http"
+
+	"github.com/Louis-Bouhours/ecrireback/db" // Importe notre package database
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"net/http"
-	"time"
 )
 
 var JwtKey = []byte("JWT_SECRET")

@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Sarinja-Corp/ecrireback/models" // Assurez-vous que le chemin d'import est correct
+	"github.com/Louis-Bouhours/ecrireback/models" // Assurez-vous que le chemin d'import est correct
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv" // <-- Importer la nouvelle bibliothèque

@@ -3,7 +3,7 @@ package routes
 import (
 	"net/http"
 
-	"github.com/Sarinja-Corp/ecrireback/auth" // Importe notre package auth
+	"github.com/Louis-Bouhours/ecrireback/auth" // Importe notre package auth
 	"github.com/gin-gonic/gin"
 )
 

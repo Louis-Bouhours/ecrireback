@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/Sarinja-Corp/ecrireback/db"
-	"github.com/Sarinja-Corp/ecrireback/routes"
+	"github.com/Louis-Bouhours/ecrireback/db"
+	"github.com/Louis-Bouhours/ecrireback/routes"
 )
 
 func main() {

@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"github.com/Sarinja-Corp/ecrireback/auth"
+	"github.com/Louis-Bouhours/ecrireback/auth"
 	"github.com/gin-gonic/gin"
 	socketio "github.com/googollee/go-socket.io"
 	"net/http"
