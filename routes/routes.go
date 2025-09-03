@@ -3,6 +3,7 @@ package routes
 import (
 	"net/http"
 
+	"github.com/Louis-Bouhours/ecrireback/api"
 	"github.com/Louis-Bouhours/ecrireback/auth" // Importe notre package auth
 	"github.com/gin-gonic/gin"
 )
@@ -13,6 +14,7 @@ func SetupRouter() *gin.Engine {
 
 	// Routes publiques
 	router.POST("/login", auth.LoginHandler)
+	router.POST("/chat/token", api.ChatJoinToken)
 
 	// Routes protégées
 	authorized := router.Group("/")
