@@ -162,3 +162,19 @@ func loadMessageHistory() ([]ChatMessage, error) {
 
 	return messages, nil
 }
+func ChatJoinToken(c *gin.Context) {
+	var payload struct {
+		Username string `json:"username"`
+	}
+	if err := c.BindJSON(&payload); err != nil || payload.Username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Pseudo requis"})
+		return
+	}
+	// On ne regarde pas la BDD !
+	tok, err := auth.GenerateJWT("", payload.Username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Problème token"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"token": tok, "username": payload.Username})
+}
