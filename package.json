@@ -11,6 +11,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@tanstack/react-router": "^1.131.32",
+    "@tanstack/router-devtools": "^1.131.32",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "express": "^5.1.0"

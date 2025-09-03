@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Louis-Bouhours/ecrireback/db"
 	"github.com/Louis-Bouhours/ecrireback/models" // Assurez-vous que le chemin d'import est correct
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -45,12 +46,8 @@ func generateJWT(username string, duration time.Duration) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
-func LoginUserRoutes(r *gin.Engine) {
-	r.POST("/api/login", apiUserLogin)
-}
-
 // Le reste de votre fonction apiUserLogin ne change pas
-func apiUserLogin(c *gin.Context) {
+func ApiUserLogin(c *gin.Context) {
 	var body struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -61,7 +58,7 @@ func apiUserLogin(c *gin.Context) {
 	}
 
 	var user models.User
-	err := models.UsersCol.FindOne(context.TODO(), bson.M{"username": body.Username}).Decode(&user)
+	err := db.UsersCol.FindOne(context.TODO(), bson.M{"username": body.Username}).Decode(&user)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Utilisateur ou mot de passe invalide"})
 		return
