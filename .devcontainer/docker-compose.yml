@@ -5,17 +5,22 @@ services:
   redis:
     image: redis:latest
     ports:
-      - "6400:6400"
+      - "6379:6379"
     networks:
       - gonet
   # Service pour l'application Go (votre conteneur de développement)
   app:
+    env_file:
+      - ../.env # Dit à Docker de remonter d'un dossier (../) pour trouver le .env
+    depends_on:
+      - mongo
+
     # Utilise une image Go fournie par Microsoft, similaire à votre demande.
     image: mcr.microsoft.com/devcontainers/go:1-bookworm
     volumes:
       # Monte le dossier de votre projet dans le conteneur.
       # '..' car le fichier est dans .devcontainer, on vise le dossier parent.
-      - ..:/workspaces/${localWorkspaceFolderBasename}:cached
+    - ..:/workspaces/ecrireback:cached
     working_dir: /workspaces/${localWorkspaceFolderBasename}
 
     # Permet au conteneur de rester en vie pour que vous puissiez vous y attacher.
@@ -29,10 +34,7 @@ services:
     # Connecte ce service au réseau 'gonet'.
     networks:
       - gonet
-    
-    # S'assure que le service mongo démarre avant le service app.
-    depends_on:
-      - mongo
+
 
   # Service pour la base de données MongoDB
   mongo:

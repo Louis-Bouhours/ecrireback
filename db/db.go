@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	Rdb      *redis.Client
-	UsersCol *mongo.Collection
-	Ctx      = context.Background()
+	Rdb         *redis.Client
+	UsersCol    *mongo.Collection
+	Ctx         = context.Background()
+	MessagesCol *mongo.Collection
 )
 
 // Init charge les variables d'environnement et se connecte aux bases de données.
@@ -47,5 +48,6 @@ func Init() {
 		log.Fatalf("❌ Impossible de se connecter à MongoDB: %v", err)
 	}
 	UsersCol = mongoClient.Database("ecrire_db").Collection("users")
+	MessagesCol = mongoClient.Database("ecrire_db").Collection("messages")
 	log.Println("✅ Connecté à MongoDB")
 }

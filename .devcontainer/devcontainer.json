@@ -8,7 +8,7 @@
   "service": "app",
 
   // Définit le dossier de travail une fois dans le conteneur.
-  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "workspaceFolder": "/workspaces/ecrireback",
 
   // Commandes à exécuter après la création du conteneur.
 

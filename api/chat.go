@@ -64,7 +64,7 @@ func ChatRoutes(r *gin.Engine) {
 	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
 		username := s.Context()
 		if username != nil {
-			delete(onlineUsers, username.(string))
+			delete(onlineUsers, username.(string))é
 			server.BroadcastToNamespace("/", "user_list", userList())
 		}
 	})
