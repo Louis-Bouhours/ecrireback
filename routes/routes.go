@@ -11,31 +11,28 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SetupRouter configure et retourne le routeur Gin.
 func SetupRouter() *gin.Engine {
 	router := gin.Default()
 
-	// CORS avec credentials + réflexion de l'origin (ALLOW ALL en dev)
-	// Remarque: on n'utilise PAS AllowOrigins: ["*"] si AllowCredentials = true
+	// CORS très permissif côté HTTP (pour WS c’est CheckOrigin dans l’upgrader)
 	router.Use(cors.New(cors.Config{
-		AllowOriginFunc: func(origin string) bool {
-			// En prod, remplace par une whitelist explicite:
-			// return origin == "https://ton-domaine" || origin == "https://app.ton-domaine"
-			return true
-		},
+		AllowOriginFunc:  func(origin string) bool { return true },
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,           // IMPORTANT pour cookies/Authorization cross-origin
-		MaxAge:           12 * time.Hour, // Cache des préflights
+		AllowCredentials: true,
+		AllowWebSockets:  true,
+		MaxAge:           12 * time.Hour,
 	}))
 
 	// Routes publiques
 	router.POST("/api/login", api.ApiUserLogin)
-	router.POST("/chat/token", chat.ChatJoinToken)
 	router.POST("/api/register", api.ApiUserRegister)
 
-	// Routes protégées
+	// Logout public (pour le bouton front)
+	api.LogoutUserRoutes(router)
+
+	// Routes protégées (exemple)
 	authorized := router.Group("/")
 	authorized.Use(auth.AuthRequired)
 	{
@@ -50,6 +47,14 @@ func SetupRouter() *gin.Engine {
 			})
 		})
 	}
+
+	// Healthcheck simple
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	// WebSocket natif
+	chat.RegisterWS(router)
 
 	return router
 }
