@@ -1,17 +1,11 @@
 package models
 
-import (
-	"time"
+import "go.mongodb.org/mongo-driver/bson/primitive"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-)
-
-// ChatMessage représente un message stocké dans la base de données
-type ChatMessage struct {
+type Message struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Username  string             `bson:"username" json:"username"`
-	Text      string             `bson:"text" json:"text"`
-	Timestamp time.Time          `bson:"timestamp" json:"timestamp"`
-	Room      string             `bson:"room" json:"room"`
-	UserID    string             `bson:"userId,omitempty" json:"userId,omitempty"`
+	Sender    string             `bson:"sender" json:"sender"`
+	Receiver  string             `bson:"receiver,omitempty" json:"receiver,omitempty"`
+	Content   string             `bson:"content" json:"content"`
+	CreatedAt primitive.DateTime `bson:"created_at" json:"created_at"`
 }
