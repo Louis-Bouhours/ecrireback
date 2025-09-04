@@ -357,8 +357,10 @@ func AuthRequired(c *gin.Context) {
 
 func LogoutHandler(c *gin.Context) {
 	clearAuthCookies(c)
-	c.JSON(http.StatusOK, gin.H{"message": "Déconnecté"})
+	clearCookie(c.Writer, "username") // <-- supprime le cookie "username" côté serveur
+	c.JSON(http.StatusOK, gin.H{"message": "Déconnecté", "clearLocalStorage": true})
 }
+
 func MeHandler(c *gin.Context) {
 	at, err := c.Cookie("access_token")
 	if err != nil || strings.TrimSpace(at) == "" {

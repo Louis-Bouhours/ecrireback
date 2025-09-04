@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"strings"
@@ -154,7 +155,55 @@ func extractUserFromRequest(r *http.Request) WSUser {
 	return WSUser{Username: "Invité", Authenticated: false}
 }
 
+// ---------- Persistence async (non-bloquante) ----------
+
+type persistItem struct {
+	UserID    string
+	Username  string
+	Room      string
+	Text      string
+	Timestamp time.Time
+}
+
+var (
+	persistQueue      = make(chan persistItem, 1000)
+	persistWorkerOnce sync.Once
+)
+
+func startPersistenceWorker() {
+	persistWorkerOnce.Do(func() {
+		go func() {
+			for it := range persistQueue {
+				// Construit le document à insérer.
+				// On conserve les champs du modèle existant (sender/content/created_at)
+				// et on ajoute user_id/username/room pour requêtes futures.
+				doc := bson.M{
+					"sender":         it.Username,                                 // compat: nom de l'expéditeur
+					"content":        it.Text,                                     // compat
+					"created_at":     primitive.NewDateTimeFromTime(it.Timestamp), // compat
+					"user_id":        it.UserID,                                   // nouvel attribut
+					"username":       it.Username,                                 // redondant mais pratique
+					"room":           it.Room,                                     // salon
+					"created_at_iso": it.Timestamp,                                // lecture humaine si besoin
+				}
+
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				_, err := db.MessagesCol.InsertOne(ctx, doc)
+				cancel()
+				if err != nil {
+					log.Printf("persist message failed: %v", err)
+				}
+			}
+		}()
+	})
+}
+
+// ------------------------------------------------------
+
 func RegisterWS(router *gin.Engine) {
+	// Démarre le worker de persistance une seule fois
+	startPersistenceWorker()
+
 	router.GET("/ws", func(c *gin.Context) {
 		log.Printf("[WS] Handshake from %s UA=%s", c.ClientIP(), c.Request.UserAgent())
 
@@ -176,10 +225,9 @@ func RegisterWS(router *gin.Engine) {
 
 		for {
 			var in struct {
-				Text string `json:"text"`
-				Room string `json:"room"`
-				// Optionnel si tu veux que le client envoie un username
-				Username string `json:"username"`
+				Text     string `json:"text"`
+				Room     string `json:"room"`
+				Username string `json:"username"` // facultatif, on privilégie l'identité auth
 			}
 			if err := conn.ReadJSON(&in); err != nil {
 				left := wsHub.remove(conn)
@@ -198,7 +246,7 @@ func RegisterWS(router *gin.Engine) {
 			if room == "" {
 				room = "general"
 			}
-			// On privilégie l'identité authentifiée
+			// Identité: priorité à l'utilisateur authentifié
 			sender := user.Username
 			if sender == "" || sender == "Invité" {
 				if in.Username != "" {
@@ -208,12 +256,29 @@ func RegisterWS(router *gin.Engine) {
 				}
 			}
 
+			ts := time.Now().UTC()
+
+			// Diffuse en temps réel (sauf à l'émetteur, qui gère un écho local côté client)
 			wsHub.broadcastExcept(WSMessage{
 				Username:  sender,
 				Text:      in.Text,
-				Timestamp: time.Now(),
+				Timestamp: ts,
 				Room:      room,
 			}, conn)
+
+			// Persistance asynchrone: ne bloque pas le flux WS.
+			select {
+			case persistQueue <- persistItem{
+				UserID:    user.ID, // vide si invité
+				Username:  sender,  // username affiché
+				Room:      room,
+				Text:      in.Text,
+				Timestamp: ts,
+			}:
+			default:
+				// File pleine: on drop et on log (stratégie simple, à ajuster si besoin)
+				log.Printf("persist queue full: dropping message from user=%s", sender)
+			}
 		}
 	})
 }
