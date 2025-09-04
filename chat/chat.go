@@ -64,9 +64,19 @@ func (h *hub) broadcast(msg WSMessage) {
 		}
 	}
 	h.mu.Unlock()
+
+	// Sauvegarde du message serveur en arrière-plan
+	SaveMessage(msg, "")
 }
 func (h *hub) broadcastExcept(msg WSMessage, except *websocket.Conn) {
 	h.mu.Lock()
+
+	// Récupérer l'ID de l'utilisateur pour la sauvegarde
+	var userID string
+	if user, exists := h.conns[except]; exists {
+		userID = user.ID
+	}
+
 	for c := range h.conns {
 		if c == except {
 			continue
@@ -78,6 +88,26 @@ func (h *hub) broadcastExcept(msg WSMessage, except *websocket.Conn) {
 		}
 	}
 	h.mu.Unlock()
+
+	// Sauvegarde du message en arrière-plan
+	SaveMessage(msg, userID)
+}
+
+// Envoie des messages historiques à un client spécifique
+func (h *hub) sendHistoricalMessages(conn *websocket.Conn, room string) {
+	messages := GetHistoricalMessages(room)
+	if messages == nil || len(messages) == 0 {
+		return
+	}
+
+	log.Printf("Envoi de %d messages historiques pour la room %s", len(messages), room)
+
+	for _, msg := range messages {
+		if err := conn.WriteJSON(msg); err != nil {
+			log.Printf("Erreur lors de l'envoi des messages historiques: %v", err)
+			return
+		}
+	}
 }
 
 func maskToken(t string) string {
@@ -167,6 +197,11 @@ func RegisterWS(router *gin.Engine) {
 
 		user := extractUserFromRequest(c.Request)
 		wsHub.add(conn, user)
+
+		// Envoyer les messages historiques du salon général
+		wsHub.sendHistoricalMessages(conn, "general")
+
+		// Envoyer la notification d'arrivée après les messages historiques
 		wsHub.broadcast(WSMessage{
 			Username:  "Serveur",
 			Text:      user.Username + " a rejoint le salon.",
@@ -200,20 +235,28 @@ func RegisterWS(router *gin.Engine) {
 			}
 			// On privilégie l'identité authentifiée
 			sender := user.Username
-			if sender == "" || sender == "Invité" {
+			if sender == "" || sender == "Qui est-tu ?" {
 				if in.Username != "" {
 					sender = in.Username
 				} else {
-					sender = "Invité"
+					sender = "Qui est-tu ?"
 				}
 			}
 
-			wsHub.broadcastExcept(WSMessage{
+			message := WSMessage{
 				Username:  sender,
 				Text:      in.Text,
 				Timestamp: time.Now(),
 				Room:      room,
-			}, conn)
+			}
+
+			// Envoyer le message au client d'origine
+			if err := conn.WriteJSON(message); err != nil {
+				log.Printf("WS write error to sender: %v", err)
+			}
+
+			// Broadcast aux autres clients
+			wsHub.broadcastExcept(message, conn)
 		}
 	})
 }
