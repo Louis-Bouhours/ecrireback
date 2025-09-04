@@ -28,6 +28,7 @@ func SetupRouter() *gin.Engine {
 	// Routes publiques
 	router.POST("/api/login", api.ApiUserLogin)
 	router.POST("/api/register", api.ApiUserRegister)
+	router.GET("/api/me", auth.MeHandler)
 
 	// Logout public (pour le bouton front)
 	api.LogoutUserRoutes(router)

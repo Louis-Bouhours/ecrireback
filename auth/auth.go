@@ -236,11 +236,18 @@ func LoginHandler(c *gin.Context) {
 // RegisterHandler: crée un utilisateur (hash bcrypt), émet les cookies.
 func RegisterHandler(c *gin.Context) {
 	var req RegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil ||
-		strings.TrimSpace(req.Username) == "" ||
-		strings.TrimSpace(req.Password) == "" ||
-		strings.TrimSpace(req.Email) == "" {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Payload invalide"})
+		return
+	}
+
+	// fallback si username est vide → utiliser la partie avant @ de l’email
+	if strings.TrimSpace(req.Username) == "" && strings.Contains(req.Email, "@") {
+		req.Username = strings.Split(req.Email, "@")[0]
+	}
+
+	if strings.TrimSpace(req.Username) == "" || strings.TrimSpace(req.Password) == "" || strings.TrimSpace(req.Email) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Champs requis manquants"})
 		return
 	}
 
@@ -351,4 +358,36 @@ func AuthRequired(c *gin.Context) {
 func LogoutHandler(c *gin.Context) {
 	clearAuthCookies(c)
 	c.JSON(http.StatusOK, gin.H{"message": "Déconnecté"})
+}
+func MeHandler(c *gin.Context) {
+	at, err := c.Cookie("access_token")
+	if err != nil || strings.TrimSpace(at) == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Non authentifié"})
+		return
+	}
+
+	claims, err := ValidateJWT(at)
+	if err != nil || claims.TokenType != "access" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token invalide"})
+		return
+	}
+
+	oid, err := primitive.ObjectIDFromHex(claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID utilisateur invalide"})
+		return
+	}
+
+	var user models.User
+	if err := db.UsersCol.FindOne(context.TODO(), bson.M{"_id": oid}).Decode(&user); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Utilisateur introuvable"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":       user.ID.Hex(),
+		"username": user.Username,
+		"email":    user.Email,
+		"avatar":   user.Avatar,
+	})
 }

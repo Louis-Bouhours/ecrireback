@@ -1,0 +1,50 @@
+services:
+  app:
+    cap_add:
+    - "SYS_PTRACE"
+    command:
+    - "-c"
+    - "while sleep 1000; do :; done"
+    entrypoint:
+    - "/bin/sh"
+    environment:
+      GOLANG_VERSION: "1.24.6"
+      GOPATH: "/go"
+      GOROOT: "/usr/local/go"
+      GOTOOLCHAIN: "local"
+      NVM_DIR: "/usr/local/share/nvm"
+      NVM_SYMLINK_CURRENT: "true"
+      PATH: "/usr/local/share/nvm/current/bin:/usr/local/go/bin:/go/bin:/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      DEVCONTAINER_CONFIG_PATH: "/.jbdevcontainer/config/JetBrains/host-config.json"
+    init: true
+    labels:
+      com.intellij.devcontainer.workspace.path: "/workspaces/ecrireback"
+      com.intellij.devcontainer.sources.path: "/Users/romainguillemot/GolandProjects/ecrireback"
+      com.intellij.devcontainer.local.source: "{\"modelFile\":\"file:///Users/romainguillemot/GolandProjects/ecrireback/.devcontainer/devcontainer.json\"\
+        ,\"mount\":true,\"sourcesDir\":\"file:///Users/romainguillemot/GolandProjects/ecrireback/\"\
+        }"
+      com.intellij.devcontainer.initial.model: "{\"customizations\":{\"jetbrains\"\
+        :{\"backend\":\"GoLand\"}},\"dockerComposeFile\":[\"docker-compose.yml\"],\"\
+        forwardPorts\":[\"8080\"],\"name\":\"Go with Gin & MongoDB\",\"service\":\"\
+        app\",\"workspaceFolder\":\"/workspaces/ecrireback\"}"
+      com.intellij.devcontainer.json.path: "/workspaces/ecrireback/.devcontainer/devcontainer.json"
+      com.intellij.devcontainer.id: "f8109cc779cfc22723071eb11e3109a"
+      com.intellij.devcontainer.model: "{\"customizations\":{\"jetbrains\":{\"backend\"\
+        :\"GoLand\"}},\"forwardPorts\":[\"8080\"]}"
+      com.intellij.devcontainer.presentable.name: "Go with Gin & MongoDB"
+    ports: []
+    security_opt:
+    - "seccomp=unconfined"
+    user: "root"
+    volumes:
+    - type: "volume"
+      source: "jb_devcontainers_shared_volume"
+      target: "/.jbdevcontainer/JetBrains/RemoteDev/dist"
+      read_only: false
+    - type: "bind"
+      source: "/Users/romainguillemot/GolandProjects/ecrireback"
+      target: "/workspaces/ecrireback"
+      read_only: false
+volumes:
+  jb_devcontainers_shared_volume:
+    external: true
