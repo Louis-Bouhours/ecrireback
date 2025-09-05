@@ -4,7 +4,7 @@
 FROM golang:1.24.3-bookworm AS builder
 WORKDIR /src
 
-# Optionnel: verrouille l'auto-download de toolchain (on a déjà la bonne version)
+# On a déjà la bonne toolchain
 ENV GOTOOLCHAIN=local
 
 COPY go.mod go.sum ./
@@ -12,13 +12,17 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY . .
 
-# Ajuste ./cmd/api si ton main n'est pas à la racine
+# Chemin du package main (override si nécessaire)
+ARG APP_PATH=./cmd/api
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
+ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
+
+# Build du binaire
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -ldflags="-s -w" -o /out/app .
+    echo "Building main package at: ${APP_PATH}" && \
+    go build -ldflags="-s -w" -o /out/app "${APP_PATH}"
 
 # Étape 2: Runtime minimal
 FROM debian:bookworm-slim AS runtime
@@ -33,6 +37,7 @@ ENV GIN_MODE=release \
     PORT=8081
 
 EXPOSE 8081
+
 
 
 # Non-root
