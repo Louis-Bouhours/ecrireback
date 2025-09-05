@@ -50,7 +50,6 @@ func Init() {
 	db := mongoClient.Database("ecrire_db")
 	UsersCol = db.Collection("users")
 	MessagesCol = db.Collection("messages")
-	RoomsCol = db.Collection("rooms")
 	log.Println("✅ Connecté à MongoDB")
 
 	// Index unique sur username

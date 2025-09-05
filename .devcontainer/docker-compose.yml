@@ -1,58 +1,50 @@
-version: '3.8'
+version: "3.8"
 
 services:
-
-  redis:
-    image: redis:latest
-    ports:
-      - "6379:6379"
-    networks:
-      - gonet
-  # Service pour l'application Go (votre conteneur de développement)
-  app:
-    env_file:
-      - ../.env # Dit à Docker de remonter d'un dossier (../) pour trouver le .env
+  api:
+    # Pour prod avec image GHCR (recommandé)
+    image: ghcr.io/${GH_OWNER:-louis-bouhours}/${GH_REPO:-ecrireback}:latest
+    # Pour dev local, commente 'image' et décommente 'build'
+    # build: .
+    container_name: ecrireback
     depends_on:
       - mongo
-
-    # Utilise une image Go fournie par Microsoft, similaire à votre demande.
-    image: mcr.microsoft.com/devcontainers/go:1-bookworm
-    volumes:
-      # Monte le dossier de votre projet dans le conteneur.
-      # '..' car le fichier est dans .devcontainer, on vise le dossier parent.
-    - ..:/workspaces/ecrireback:cached
-    working_dir: /workspaces/${localWorkspaceFolderBasename}
-
-    # Permet au conteneur de rester en vie pour que vous puissiez vous y attacher.
-    command: sleep infinity
-
+      - redis
+    env_file:
+      - ./.env
     ports:
-      # Mappe le port 8080 du conteneur au port 8080 de votre Mac.
-      # C'est ce qui rend Gin accessible depuis votre navigateur local.
+      # Expose l'API sur la machine hôte (change le port si besoin)
       - "8081:8081"
-
-    # Connecte ce service au réseau 'gonet'.
     networks:
-      - gonet
+      - ecrire-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${PORT:-8081}/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
 
-
-  # Service pour la base de données MongoDB
   mongo:
-    image: mongo:latest
-    ports:
-     - "27017:27017"
+    image: mongo:7
+    container_name: ecrire-mongo
     volumes:
-      # Persiste les données de MongoDB en dehors du conteneur.
       - mongo-data:/data/db
-    # Connecte ce service au réseau 'gonet'.
     networks:
-      - gonet
+      - ecrire-net
+    # Pas d'exposition publique par défaut (sécurité)
 
-# Définit le réseau partagé que les conteneurs utiliseront pour communiquer.
+  redis:
+    image: redis:7-alpine
+    container_name: ecrire-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - ecrire-net
+
 networks:
-  gonet:
+  ecrire-net:
     driver: bridge
 
-# Définit le volume pour la persistance des données MongoDB.
 volumes:
   mongo-data:
+  redis-data:
