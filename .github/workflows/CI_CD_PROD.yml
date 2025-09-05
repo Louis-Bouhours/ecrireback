@@ -20,7 +20,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Run Trivy vulnerability scanner (filesystem)
         uses: aquasecurity/trivy-action@0.33.0
         with:
@@ -50,8 +49,7 @@ jobs:
 
       - name: Build Docker image
         env:
-          # Chemin du package main (ecrireback/cmd/main.go)
-          APP_PATH: ./ecrireback/cmd
+          APP_PATH: ./cmd
         run: |
           docker build \
             --build-arg APP_PATH="${APP_PATH}" \
@@ -101,7 +99,7 @@ jobs:
         env:
           GH_REPO: ${{ github.repository }}
           GH_USER: ${{ github.actor }}
-          GHCR_PAT: ${{ secrets.GHCR_PAT }} # optionnel si image privée
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
           BACKEND_PORT: ${{ secrets.BACKEND_PORT }}
           GIN_MODE: ${{ secrets.GIN_MODE }}
           ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
@@ -123,19 +121,16 @@ jobs:
             APP_DIR="/opt/ecrireback"
             cd "$APP_DIR"
 
-            # Valeurs par défaut sûres
             : "${BACKEND_PORT:=8081}"
             : "${GIN_MODE:=release}"
             : "${ALLOWED_ORIGINS:=}"
             : "${MONGO_DB:=ecrire}"
 
-            # Contrôle des secrets requis
             if [ -z "${MONGO_ROOT_USER:-}" ] || [ -z "${MONGO_ROOT_PASSWORD:-}" ] || [ -z "${MONGO_APP_USER:-}" ] || [ -z "${MONGO_APP_PASSWORD:-}" ] || [ -z "${REDIS_PASSWORD:-}" ]; then
               echo "ERROR: Missing required secrets for DB/Redis." >&2
               exit 1
             fi
 
-            # Génère .env (permissions 600) sans heredoc pour éviter les soucis d'indentation YAML
             umask 077
             {
               echo "BACKEND_PORT=${BACKEND_PORT}"
@@ -150,12 +145,10 @@ jobs:
               echo "REDIS_PASSWORD=${REDIS_PASSWORD}"
             } > .env
 
-            # Connexion à GHCR si image privée
             if [ -n "${GHCR_PAT:-}" ]; then
               echo "$GHCR_PAT" | docker login ghcr.io -u "$GH_USER" --password-stdin
             fi
 
-            # Pull et déploiement via Compose
             IMAGE_NAME="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]')"
             echo "Using image: ${IMAGE_NAME}:latest"
 
