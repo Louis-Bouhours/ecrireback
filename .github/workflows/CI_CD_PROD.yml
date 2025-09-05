@@ -49,8 +49,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Docker image
+        env:
+          # Chemin du package main (ecrireback/cmd/main.go)
+          APP_PATH: ./ecrireback/cmd
         run: |
           docker build \
+            --build-arg APP_PATH="${APP_PATH}" \
             -t "${{ steps.compute.outputs.image_name }}:latest" \
             -t "${{ steps.compute.outputs.image_name }}:${{ github.run_number }}" .
 
@@ -98,15 +102,15 @@ jobs:
           GH_REPO: ${{ github.repository }}
           GH_USER: ${{ github.actor }}
           GHCR_PAT: ${{ secrets.GHCR_PAT }} # optionnel si image privée
-          # ------- Secrets applicatifs (utilisés pour générer .env) -------
           BACKEND_PORT: ${{ secrets.BACKEND_PORT }}
+          GIN_MODE: ${{ secrets.GIN_MODE }}
           ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
           MONGO_ROOT_USER: ${{ secrets.MONGO_ROOT_USER }}
           MONGO_ROOT_PASSWORD: ${{ secrets.MONGO_ROOT_PASSWORD }}
           MONGO_DB: ${{ secrets.MONGO_DB }}
           MONGO_APP_USER: ${{ secrets.MONGO_APP_USER }}
           MONGO_APP_PASSWORD: ${{ secrets.MONGO_APP_PASSWORD }}
-          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}BACKEND_PORT=${BACKEND_PORT}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -119,19 +123,32 @@ jobs:
             APP_DIR="/opt/ecrireback"
             cd "$APP_DIR"
 
-            # Génère .env à partir des secrets (avec valeurs par défaut sûres)
+            # Valeurs par défaut sûres
             : "${BACKEND_PORT:=8081}"
             : "${GIN_MODE:=release}"
             : "${ALLOWED_ORIGINS:=}"
             : "${MONGO_DB:=ecrire}"
+
+            # Contrôle des secrets requis
             if [ -z "${MONGO_ROOT_USER:-}" ] || [ -z "${MONGO_ROOT_PASSWORD:-}" ] || [ -z "${MONGO_APP_USER:-}" ] || [ -z "${MONGO_APP_PASSWORD:-}" ] || [ -z "${REDIS_PASSWORD:-}" ]; then
               echo "ERROR: Missing required secrets for DB/Redis." >&2
               exit 1
             fi
 
+            # Génère .env (permissions 600) sans heredoc pour éviter les soucis d'indentation YAML
             umask 077
-            cat > .env <<'EOF'
-
+            {
+              echo "BACKEND_PORT=${BACKEND_PORT}"
+              echo "APP_PORT=${BACKEND_PORT}"
+              echo "GIN_MODE=${GIN_MODE}"
+              echo "ALLOWED_ORIGINS=${ALLOWED_ORIGINS}"
+              echo "MONGO_ROOT_USER=${MONGO_ROOT_USER}"
+              echo "MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}"
+              echo "MONGO_DB=${MONGO_DB}"
+              echo "MONGO_APP_USER=${MONGO_APP_USER}"
+              echo "MONGO_APP_PASSWORD=${MONGO_APP_PASSWORD}"
+              echo "REDIS_PASSWORD=${REDIS_PASSWORD}"
+            } > .env
 
             # Connexion à GHCR si image privée
             if [ -n "${GHCR_PAT:-}" ]; then

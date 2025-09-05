@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 
 # Chemin du package main (override si nécessaire)
-ARG APP_PATH=./cmd/api
+ARG APP_PATH=./cmd/
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
