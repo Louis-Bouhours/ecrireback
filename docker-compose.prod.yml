@@ -1,0 +1,103 @@
+version: "3.8"
+
+services:
+  api:
+    image: ghcr.io/louis-bouhours/ecrireback:latest
+    container_name: ecrireback
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      # Valeurs injectées par ./.env généré pendant le déploiement
+      MONGO_URI: mongodb://${MONGO_APP_USER}:${MONGO_APP_PASSWORD}@ecrire-mongo:27017/${MONGO_DB}?authSource=${MONGO_DB}&connectTimeoutMS=5000
+      REDIS_ADDR: ecrire-redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      GIN_MODE: ${GIN_MODE:-release}
+      PORT: 8081
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Expose uniquement en local, à placer derrière un reverse proxy
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8081}:8081"
+    networks:
+      - ecrire-net
+    # Durcissement (désactive si ton app écrit sur disque)
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mongo:
+    image: mongo:7
+    container_name: ecrire-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+      MONGO_APP_USER: ${MONGO_APP_USER}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/01-init-app-user.js:ro
+    networks:
+      - ecrire-net
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet -u \"$MONGO_INITDB_ROOT_USERNAME\" -p \"$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval \"db.adminCommand({ ping: 1 })\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecrire-redis
+    restart: unless-stopped
+    command: >
+      sh -c "exec redis-server --appendonly yes --requirepass \"$REDIS_PASSWORD\""
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    networks:
+      - ecrire-net
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  ecrire-net:
+    driver: bridge
+    internal: true
+
+volumes:
+  mongo-data:
+  redis-data:
