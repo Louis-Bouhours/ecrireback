@@ -1,8 +1,11 @@
 # syntax=docker/dockerfile:1
 
-# Étape 1: Build binaire Go
-FROM golang:1.22-bookworm AS builder
+# Étape 1: Build binaire Go (aligne avec go.mod >= 1.24.3)
+FROM golang:1.24.3-bookworm AS builder
 WORKDIR /src
+
+# Optionnel: verrouille l'auto-download de toolchain (on a déjà la bonne version)
+ENV GOTOOLCHAIN=local
 
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
