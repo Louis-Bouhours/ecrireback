@@ -9,13 +9,13 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY . .
 
-# Chemin du package main dans CE dépôt
+# Chemin du package main
 ARG APP_PATH=./cmd.
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
 
-# Build du binaire (avec check clair si le chemin est mauvais)
+# Build du binaire (avec vérification du chemin)
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     echo "Building main package at: ${APP_PATH}" && \
@@ -28,14 +28,14 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -ldflags="-s -w" -o /out/app "${APP_PATH}"
 
 FROM debian:bookworm-slim AS runtime
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates tzdata wget \
- && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates tzdata wget && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=builder /out/app /app/app
 
-# Ton app lit APP_PORT
+# L'app lit APP_PORT
 ENV GIN_MODE=release \
     APP_PORT=8081
 
