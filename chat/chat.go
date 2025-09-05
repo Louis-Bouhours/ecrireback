@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +16,8 @@ import (
 	"github.com/gorilla/websocket"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type WSMessage struct {
@@ -204,6 +207,69 @@ func RegisterWS(router *gin.Engine) {
 	// Démarre le worker de persistance une seule fois
 	startPersistenceWorker()
 
+	// Endpoint REST pour charger l'historique par room
+	router.GET("/api/messages", func(c *gin.Context) {
+		room := c.Query("room")
+		if room == "" {
+			room = "general"
+		}
+		limit := int64(100)
+		if s := c.Query("limit"); s != "" {
+			if n, err := strconv.Atoi(s); err == nil && n > 0 && n <= 500 {
+				limit = int64(n)
+			}
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		opts := options.Find().
+			SetSort(bson.D{{Key: "created_at", Value: 1}}). // ancien -> récent
+			SetLimit(limit)
+
+		cur, err := db.MessagesCol.Find(ctx, bson.M{"room": room}, opts)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
+			return
+		}
+		defer func(cur *mongo.Cursor, ctx context.Context) {
+			err := cur.Close(ctx)
+			if err != nil {
+
+			}
+		}(cur, ctx)
+
+		type msgDoc struct {
+			ID        primitive.ObjectID `bson:"_id"`
+			Sender    string             `bson:"sender"`
+			Content   string             `bson:"content"`
+			Room      string             `bson:"room"`
+			CreatedAt primitive.DateTime `bson:"created_at"`
+		}
+
+		out := make([]gin.H, 0, limit)
+		for cur.Next(ctx) {
+			var doc msgDoc
+			if err := cur.Decode(&doc); err != nil {
+				continue
+			}
+			out = append(out, gin.H{
+				"id":        doc.ID.Hex(),
+				"username":  doc.Sender,
+				"text":      doc.Content,
+				"timestamp": doc.CreatedAt.Time().UTC().Format(time.RFC3339),
+				"room":      doc.Room,
+			})
+		}
+		if err := cur.Err(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "db cursor error"})
+			return
+		}
+
+		c.JSON(http.StatusOK, out)
+	})
+
+	// WebSocket temps réel
 	router.GET("/ws", func(c *gin.Context) {
 		log.Printf("[WS] Handshake from %s UA=%s", c.ClientIP(), c.Request.UserAgent())
 
