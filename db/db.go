@@ -37,7 +37,7 @@ func Init() {
 	log.Println("✅ Connecté à Redis")
 
 	// MongoDB
-	mongoURI := os.Getenv("BDOUBLED") // assure-toi que c'est bien le nom voulu dans ton .env
+	mongoURI := os.Getenv("BDOUBLED")
 	if mongoURI == "" {
 		log.Fatal("❌ La variable d'environnement BDOUBLED n'est pas définie dans le .env")
 	}
