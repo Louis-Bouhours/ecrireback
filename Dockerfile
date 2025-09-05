@@ -10,7 +10,7 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 
 # Chemin du package main
-ARG APP_PATH=./cmd.
+ARG APP_PATH=./ecrireback/cmd.
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
