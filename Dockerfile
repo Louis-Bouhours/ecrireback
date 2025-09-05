@@ -39,7 +39,6 @@ ENV GIN_MODE=release \
 EXPOSE 8081
 
 
-
 # Non-root
 USER 65532:65532
 
