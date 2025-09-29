@@ -1,4 +1,4 @@
-name: Backend_CI_CD
+name: CI_CD_BACKEND_PROD
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner (filesystem)
+      - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.33.0
         with:
           scan-type: fs
@@ -35,146 +35,105 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Compute IMAGE_NAME (lower-case)
-        id: compute
+      - name: Compute API image name
+        id: meta
         run: |
           IMAGE_NAME="ghcr.io/$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
-          echo "image_name=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "IMAGE_NAME=$IMAGE_NAME" >> "$GITHUB_ENV"
 
-      - name: Log in to GHCR (GITHUB_TOKEN)
+      - name: Log in to Github Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Docker image
-        env:
-          # Chemin de ton package main
-          APP_PATH: ./ecrireback/cmd
+      - name: Build Docker image (API service)
         run: |
-          docker build \
-            --build-arg APP_PATH="${APP_PATH}" \
-            -t "${{ steps.compute.outputs.image_name }}:latest" \
-            -t "${{ steps.compute.outputs.image_name }}:${{ github.run_number }}" .
+          docker build -t "$IMAGE_NAME:latest" -t "$IMAGE_NAME:${{ github.run_number }}" .
 
       - name: Push Docker image
         run: |
-          docker push "${{ steps.compute.outputs.image_name }}:latest"
-          docker push "${{ steps.compute.outputs.image_name }}:${{ github.run_number }}"
+          docker push "$IMAGE_NAME:latest"
+          docker push "$IMAGE_NAME:${{ github.run_number }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
-          name: "Backend Release v${{ github.run_number }}"
+          name: "Release v${{ github.run_number }}"
           body: |
-            Backend image pushed
-            - Docker image: ${{ steps.compute.outputs.image_name }}:latest
+            generated github release
+            - Docker image: ${{ env.IMAGE_NAME }}:latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
-    name: Deploy to VPS (compose + env from secrets)
+    name: Deploy to VPS (Compose Prod)
     runs-on: ubuntu-latest
-    needs: [docker-release]
+    needs: [ docker-release ]
     steps:
-      - name: Ensure target directory exists
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT }}
-          script: mkdir -p /opt/ecrireback
-
-      - name: Checkout repository
+      - name: Checkout repository for deploy script
         uses: actions/checkout@v4
 
-      - name: Upload compose files to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT }}
-          source: |
-            docker-compose.prod.yml
-            mongo-init.js
-          target: /opt/ecrireback
-          strip_components: 0
-          overwrite: true
-
-      - name: Deploy over SSH
+      - name: Deploy over SSH (Docker Compose)
         uses: appleboy/ssh-action@v1.2.0
         env:
-          GH_REPO: ${{ github.repository }}
           GH_USER: ${{ github.actor }}
-          GHCR_PAT: ${{ secrets.GHCR_PAT }} # optionnel si image privée
-          BACKEND_PORT: ${{ secrets.BACKEND_PORT }}
-          GIN_MODE: ${{ secrets.GIN_MODE }}
-          ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
-          MONGO_ROOT_USER: ${{ secrets.MONGO_ROOT_USER }}
-          MONGO_ROOT_PASSWORD: ${{ secrets.MONGO_ROOT_PASSWORD }}
-          MONGO_DB: ${{ secrets.MONGO_DB }}
-          MONGO_APP_USER: ${{ secrets.MONGO_APP_USER }}
-          MONGO_APP_PASSWORD: ${{ secrets.MONGO_APP_PASSWORD }}
-          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GHCR_PAT }}
+          GH_REPO: ${{ github.repository }}
         with:
           host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
+          username: deployer
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT }}
-          envs: GH_REPO,GH_USER,GHCR_PAT,BACKEND_PORT,GIN_MODE,ALLOWED_ORIGINS,MONGO_ROOT_USER,MONGO_ROOT_PASSWORD,MONGO_DB,MONGO_APP_USER,MONGO_APP_PASSWORD,REDIS_PASSWORD
+          # Transfère uniquement docker-compose.yml et .env.prod
+          source: "docker-compose.prod.yml,.env"
+          target: "/home/deployer/apps/ecrireback/"
+          envs: GH_USER,GH_TOKEN,GH_REPO
           script: |
             set -euo pipefail
-
-            APP_DIR="/opt/ecrireback"
-            cd "$APP_DIR"
-
-            # Valeurs par défaut sûres
-            : "${BACKEND_PORT:=8081}"
-            : "${GIN_MODE:=release}"
-            : "${ALLOWED_ORIGINS:=}"
-            : "${MONGO_DB:=ecrire}"
-
-            # Contrôle des secrets requis
-            if [ -z "${MONGO_ROOT_USER:-}" ] || [ -z "${MONGO_ROOT_PASSWORD:-}" ] || [ -z "${MONGO_APP_USER:-}" ] || [ -z "${MONGO_APP_PASSWORD:-}" ] || [ -z "${REDIS_PASSWORD:-}" ]; then
-              echo "ERROR: Missing required secrets for DB/Redis." >&2
-              exit 1
-            fi
-
-            # Génère .env (permissions 600) sans heredoc pour éviter les soucis d'indentation YAML
-            umask 077
-            {
-              echo "BACKEND_PORT=${BACKEND_PORT}"
-              echo "APP_PORT=${BACKEND_PORT}"
-              echo "GIN_MODE=${GIN_MODE}"
-              echo "ALLOWED_ORIGINS=${ALLOWED_ORIGINS}"
-              echo "MONGO_ROOT_USER=${MONGO_ROOT_USER}"
-              echo "MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}"
-              echo "MONGO_DB=${MONGO_DB}"
-              echo "MONGO_APP_USER=${MONGO_APP_USER}"
-              echo "MONGO_APP_PASSWORD=${MONGO_APP_PASSWORD}"
-              echo "REDIS_PASSWORD=${REDIS_PASSWORD}"
-            } > .env
-
-            # Connexion à GHCR si image privée
-            if [ -n "${GHCR_PAT:-}" ]; then
-              echo "$GHCR_PAT" | docker login ghcr.io -u "$GH_USER" --password-stdin
-            fi
-
-            # Pull et déploiement via Compose
+            
+            APP_NAME="$(basename "$GH_REPO" | tr '[:upper:]' '[:lower:]')"
             IMAGE_NAME="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]')"
-            echo "Using image: ${IMAGE_NAME}:latest"
-
-            docker compose -f docker-compose.prod.yml --env-file .env pull
-            docker compose -f docker-compose.prod.yml --env-file .env up -d
-
-            docker image prune -f || true
-
-            if [ -n "${GHCR_PAT:-}" ]; then
-              docker logout ghcr.io || true
+            
+            BASE_DIR="$HOME/apps/$APP_NAME"
+            cd "$BASE_DIR"
+            
+            # Authentification à GHCR si image privée
+            echo "Logging into GitHub Container Registry..."
+            if [ -n "${GH_TOKEN:-}" ]; then
+              echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_USER" --password-stdin
             fi
-
-            echo "Deploy complete."
+            
+            # Définition des variables d'environnement à partir des secrets
+            export MONGO_INITDB_ROOT_USERNAME="${{ secrets.MONGO_INITDB_ROOT_USERNAME }}"
+            export MONGO_INITDB_ROOT_PASSWORD="${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}"
+            export MONGO_DB="${{ secrets.MONGO_DB }}"
+            export MONGO_APP_USER="${{ secrets.MONGO_APP_USER }}"
+            export MONGO_APP_PASSWORD="${{ secrets.MONGO_APP_PASSWORD }}"
+            export REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}"
+            export ALLOWED_ORIGINS="${{ secrets.ALLOWED_ORIGINS }}"
+            export GIN_MODE="${{ secrets.GIN_MODE }}"
+            export BACKEND_PORT=2427
+            
+            # Mise à jour de l'image dans le docker-compose
+            sed -i "s|image: ghcr.io/.*:latest|image: ${IMAGE_NAME}:latest|" docker-compose.yml
+            
+            # Mise à jour de la variable de port dans le fichier .env.prod
+            sed -i "s|BACKEND_PORT=.*|BACKEND_PORT=${BACKEND_PORT}|" .env.prod
+            
+            echo "Pulling latest images defined in docker-compose..."
+            docker compose -f docker-compose.yml --env-file .env.prod pull
+            
+            echo "Starting/Updating services with Docker Compose..."
+            docker compose -f docker-compose.yml --env-file .env.prod up -d --force-recreate
+            
+            docker image prune -f || true
+            
+            echo "Logging out from GitHub Container Registry..."
+            if [ -n "${GH_TOKEN:-}" ]; then
+              docker logout ghcr.io
+            fi
+            
+            echo "Deployment complete."
